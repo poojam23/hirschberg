@@ -105,7 +105,6 @@ void hirschberg(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<
 }
 
 void addFirstLastColumnToResult(map<int, vector<int> > &result, string &seq1, string &seq2, map<string, int> &scoring) {
-    cout << "in addFirstLastColTOResult:" << endl;
     vector<int> i_star_first_col, i_star_last_col;
     vector<int> first_col_suffix = suffix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
     vector<int> last_col_prefix = prefix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
@@ -128,6 +127,7 @@ void addFirstLastColumnToResult(map<int, vector<int> > &result, string &seq1, st
 
 void printAlignment(map<int, vector<int> > &result, string &seq1, string &seq2, map<string, int> &scoring) {
     string seq1_align, seq2_align;
+    addFirstLastColumnToResult(result, seq1, seq2, scoring);
     int next_col_first_cell = seq1.size();
     map<int, vector<int> >::reverse_iterator riter = result.rbegin();
     for (; riter != result.rend(); ++riter) {
@@ -177,7 +177,6 @@ int main() {
     cout << "seq2: " << sequence2 << endl;
     map<int, vector<int> > result;
     hirschberg(0, 0, sequence1.size()-1, sequence2.size()-1, sequence1, sequence2, scoring, result);
-    addFirstLastColumnToResult(result, sequence1, sequence2, scoring);
     //printResult(result);
     printAlignment(result, sequence1, sequence2, scoring);
 }
