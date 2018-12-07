@@ -16,7 +16,7 @@ void printVector(vector<int> &vec) {
     cout << endl;
 }
 
-pair<vector<int>, vector<int> > prefix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<string, int> &scoring) {
+vector<int> prefix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<string, int> &scoring) {
     cout << "prefix: " << i1 << ", " << j1 << ", " << i2 << ", " << j2 << endl; 
     // 2-column solution
     int col_length = i2 - i1 + 1;
@@ -41,11 +41,7 @@ pair<vector<int>, vector<int> > prefix(int i1, int j1, int i2, int j2, string &s
             col1 = col2;
     }
     printVector(col2);
-    //vector<vector<int> > return_vec(2);
-    //return_vec[0] = col1;
-    //return_vec[1] = col2;
-    //return return_vec;
-    return make_pair(col1, col2);
+    return col2;
 }
 
 vector<int> suffix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<string, int> &scoring) {
@@ -79,7 +75,7 @@ void hirschberg(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<
     cout << "hirsch: " << i1 << ", " << j1 << ", " << i2 << ", " << j2 << endl; 
     if (j1 >= j2-1)
         return;
-    vector<int> pre = prefix(i1, j1, i2, j1+((j2-j1)/2), seq1, seq2, scoring).second;
+    vector<int> pre = prefix(i1, j1, i2, j1+((j2-j1)/2), seq1, seq2, scoring);
     vector<int> suf = suffix(i1, j1+((j2-j1)/2), i2, j2, seq1, seq2, scoring);
     int max = pre[0] + suf[0];
     vector<int> i_star_list;
@@ -100,71 +96,64 @@ void hirschberg(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<
     hirschberg(i_star, (j1+((j2-j1)/2)), i2, j2, seq1, seq2, scoring, result);
 }
 
+void addFirstLastColumnToResult(map<int, vector<int> > &result, string &seq1, string &seq2, map<string, int> &scoring) {
+    cout << "in addFirstLastColTOResult:" << endl;
+    vector<int> i_star_first_col, i_star_last_col;
+    vector<int> first_col_suffix = suffix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
+    vector<int> last_col_prefix = prefix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
+    int first_col_best_score = first_col_suffix[0], last_col_best_score = last_col_prefix.back();
+    cout << first_col_best_score << " " << last_col_best_score << endl;
+    for (int i = 0; i < seq1.size(); ++i) {
+        int first_col_score = first_col_suffix[i] - i;
+        int last_col_score = last_col_prefix[seq1.size()-i-1] - i;
+        if (i == 0 || first_col_score == first_col_best_score) {
+            i_star_first_col.push_back(i);
+        }
+        if (i == 0 || last_col_score == last_col_best_score) {
+            i_star_last_col.push_back(seq1.size() - i - 1);
+        }
+    }
+    reverse(i_star_last_col.begin(), i_star_last_col.end());
+    result[0] = i_star_first_col;
+    result[seq2.size()-1] = i_star_last_col;
+    cout << "first col best indices:";
+    printVector(i_star_first_col);
+    cout << "last col best indices:";
+    printVector(i_star_last_col);
+}
+
 void printAlignment(map<int, vector<int> > &result, string &seq1, string &seq2, map<string, int> &scoring) {
-    cout << "printing alignment..." << endl;
     string seq1_align, seq2_align;
-    int prev_col_last_cell = -1;
-    for (map<int, vector<int> >::iterator iter = result.begin(); iter != result.end(); ++iter) {
-        int col_no = iter->first;
-        for (int i = 0; i < iter->second.size(); ++i) {
-            if (i == 0) {
-                if (prev_col_last_cell == -1) {
-                    if (iter->second[i] == 0)
-                        seq1_align.push_back('-');
-                    else
-                        seq1_align.push_back(seq1[iter->second[i]]);
-                    seq2_align.push_back(seq2[col_no]);
-                } else if (prev_col_last_cell == iter->second[i]) {
+    addFirstLastColumnToResult(result, seq1, seq2, scoring);
+    int next_col_first_cell = seq1.size();
+    map<int, vector<int> >::reverse_iterator riter = result.rbegin();
+    for (; riter != result.rend(); ++riter) {
+        int col_no = riter->first;
+        bool col_started = false;
+        for (int i = riter->second.size()-1; i >= 0; --i) {
+            if (!col_started) {
+                if (riter->second[i] > next_col_first_cell)
+                    continue;
+                if (riter->second[i] == next_col_first_cell) {
                     seq1_align.push_back('-');
-                    seq2_align.push_back(seq2[col_no]);
-                } else if (prev_col_last_cell == iter->second[i]-1) {
-                    seq1_align.push_back(seq1[iter->second[i]]);
-                    seq2_align.push_back(seq2[col_no]);
+                    seq2_align.push_back(seq2[col_no+1]);
+                } else if (riter->second[i] == next_col_first_cell-1) {
+                    if (riter != result.rbegin()) {
+                        seq1_align.push_back(seq1[next_col_first_cell]);
+                        seq2_align.push_back(seq2[col_no+1]);
+                    }
                 }
+                col_started = true;
             } else {
-                seq1_align.push_back(seq1[iter->second[i]]);
+                seq1_align.push_back(seq1[riter->second[i+1]]);
                 seq2_align.push_back('-');
             }
         }
-        prev_col_last_cell = iter->second.back();
-        cout << prev_col_last_cell << endl;
+        next_col_first_cell = riter->second[0];
+        cout << "next_col_first_cell: " << next_col_first_cell << endl;
     }
-    if (prev_col_last_cell == seq1.size()-1) {
-        seq1_align.push_back('-');
-        seq2_align.push_back(seq2.back());
-    } else {
-        cout << "last column stuff: " << prev_col_last_cell << endl;
-        pair<vector<int>, vector<int> > prefix_pair = prefix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
-        vector<int> col1 = prefix_pair.first, col2 = prefix_pair.second;
-        cout << "col1: ";
-        printVector(col1);
-        cout << "col2: ";
-        printVector(col2);
-        int second_last_value = col1[prev_col_last_cell];
-        int diagonal_down = col2[prev_col_last_cell+1];
-        cout << second_last_value << " " << diagonal_down << endl;
-        int seq1_start = 0;
-        if ((seq2.back() == seq1[prev_col_last_cell+1]) && (diagonal_down == second_last_value+1)) {
-            cout << "picking 1" << endl;
-            seq1_align.push_back(seq1[prev_col_last_cell+1]);
-            seq2_align.push_back(seq2.back());
-            seq1_start = prev_col_last_cell + 2;
-        } else if (diagonal_down == second_last_value-1) {
-            cout << "picking 2" << endl;
-            seq1_align.push_back(seq1[prev_col_last_cell+1]);
-            seq2_align.push_back(seq2.back());
-            seq1_start = prev_col_last_cell + 2;
-        } else if ((diagonal_down == col2[prev_col_last_cell]-1) && (col2[prev_col_last_cell] == second_last_value-1)) {
-            cout << "picking 3" << endl;
-            seq1_align.push_back('-');
-            seq2_align.push_back(seq2.back());
-            seq1_start = prev_col_last_cell + 1;
-        }
-        for (int i = seq1_start; i < seq1.size(); ++i) {
-            seq1_align.push_back(seq1[i]);
-            seq2_align.push_back('-');
-        }
-    }
+    reverse(seq1_align.begin(), seq1_align.end());
+    reverse(seq2_align.begin(), seq2_align.end());
     cout << seq1_align << endl;
     cout << seq2_align << endl;
 }
@@ -173,13 +162,12 @@ int main() {
     string sequence1, sequence2;
     cin >> sequence1 >> sequence2;
     map<string, int> scoring;
-    // cin >> scoring["indel"] >> scoring["mismatch"] >> scoring["match"];
     scoring["indel"] = -1;
     scoring["mismatch"] = -1;
     scoring["match"] = 1;
     sequence1 = "*" + sequence1;
     sequence2 = "*" + sequence2;
-    if (sequence2.size() < sequence1.size()) // keeping sequence1 to be the shorter sequence
+    if (sequence2.size() < sequence1.size()) // keeping sequence1 as the shorter sequence
         swap(sequence1, sequence2);
     cout << "seq1: " << sequence1 << endl;
     cout << "seq2: " << sequence2 << endl;
