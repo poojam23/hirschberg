@@ -16,8 +16,16 @@ void printVector(vector<int> &vec) {
     cout << endl;
 }
 
+int getAlignmentScore(string &seq1_align, string &seq2_align) {
+    int score = 0;
+    for (int i = 0; i < seq1_align.size(); ++i) {
+        if (seq1_align[i] != seq2_align[i])
+            ++score;
+    }
+    return score;
+}
+
 vector<int> prefix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<string, int> &scoring) {
-    cout << "prefix: " << i1 << ", " << j1 << ", " << i2 << ", " << j2 << endl; 
     // 2-column solution
     int col_length = i2 - i1 + 1;
     vector<int> col1, col2(col_length);
@@ -40,12 +48,10 @@ vector<int> prefix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, m
         if (j < j2)
             col1 = col2;
     }
-    printVector(col2);
     return col2;
 }
 
 vector<int> suffix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<string, int> &scoring) {
-    cout << "suffix: " << i1 << ", " << j1 << ", " << i2 << ", " << j2 << endl; 
     // 2-column solution
     int col_length = i2 - i1 + 1;
     vector<int> col1(col_length), col2(col_length);
@@ -67,31 +73,29 @@ vector<int> suffix(int i1, int j1, int i2, int j2, string &seq1, string &seq2, m
         }
         col1 = col2;
     }
-    printVector(col2);
     return col2;
 }
 
 void hirschberg(int i1, int j1, int i2, int j2, string &seq1, string &seq2, map<string, int> &scoring, map<int, vector<int> > &result) {
-    cout << "hirsch: " << i1 << ", " << j1 << ", " << i2 << ", " << j2 << endl; 
     if (j1 >= j2-1)
         return;
     vector<int> pre = prefix(i1, j1, i2, j1+((j2-j1)/2), seq1, seq2, scoring);
     vector<int> suf = suffix(i1, j1+((j2-j1)/2), i2, j2, seq1, seq2, scoring);
-    int max = pre[0] + suf[0];
-    vector<int> i_star_list;
-    i_star_list.push_back(i1);
+    int max = pre[0] + suf[0], list_begin_ix = 0;
     for (int i = 1; i < pre.size(); ++i) {
-        if (max < pre[i]+suf[i]) {
+        if (max < pre[i] + suf[i]) {
             max = pre[i] + suf[i];
-            i_star_list.clear();
-            i_star_list.push_back(i + i1);
-        } else if (max == pre[i] + suf[i]) {
-            i_star_list.push_back(i + i1);
+            list_begin_ix = i;
         }
+    }
+    vector<int> i_star_list;
+    i_star_list.push_back(i1 + list_begin_ix);
+    for (int i = list_begin_ix+1; i < pre.size(); ++i) {
+        if ((pre[i] == pre[i-1] + scoring["indel"]) && max == pre[i]+suf[i])
+            i_star_list.push_back(i1 + i);
     }
     int i_star = i_star_list[0];
     result[(j1+((j2-j1)/2))] = i_star_list;
-    printResult(result);
     hirschberg(i1, j1, i_star, (j1+((j2-j1)/2)), seq1, seq2, scoring, result);
     hirschberg(i_star, (j1+((j2-j1)/2)), i2, j2, seq1, seq2, scoring, result);
 }
@@ -102,7 +106,7 @@ void addFirstLastColumnToResult(map<int, vector<int> > &result, string &seq1, st
     vector<int> first_col_suffix = suffix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
     vector<int> last_col_prefix = prefix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
     int first_col_best_score = first_col_suffix[0], last_col_best_score = last_col_prefix.back();
-    cout << first_col_best_score << " " << last_col_best_score << endl;
+    cout << "correct edit distance: " << -last_col_best_score << endl;
     for (int i = 0; i < seq1.size(); ++i) {
         int first_col_score = first_col_suffix[i] - i;
         int last_col_score = last_col_prefix[seq1.size()-i-1] - i;
@@ -116,15 +120,10 @@ void addFirstLastColumnToResult(map<int, vector<int> > &result, string &seq1, st
     reverse(i_star_last_col.begin(), i_star_last_col.end());
     result[0] = i_star_first_col;
     result[seq2.size()-1] = i_star_last_col;
-    cout << "first col best indices:";
-    printVector(i_star_first_col);
-    cout << "last col best indices:";
-    printVector(i_star_last_col);
 }
 
 void printAlignment(map<int, vector<int> > &result, string &seq1, string &seq2, map<string, int> &scoring) {
     string seq1_align, seq2_align;
-    addFirstLastColumnToResult(result, seq1, seq2, scoring);
     int next_col_first_cell = seq1.size();
     map<int, vector<int> >::reverse_iterator riter = result.rbegin();
     for (; riter != result.rend(); ++riter) {
@@ -150,12 +149,13 @@ void printAlignment(map<int, vector<int> > &result, string &seq1, string &seq2, 
             }
         }
         next_col_first_cell = riter->second[0];
-        cout << "next_col_first_cell: " << next_col_first_cell << endl;
     }
     reverse(seq1_align.begin(), seq1_align.end());
     reverse(seq2_align.begin(), seq2_align.end());
     cout << seq1_align << endl;
     cout << seq2_align << endl;
+    int alignment_score = getAlignmentScore(seq1_align, seq2_align);
+    cout << "our edit distance: " << alignment_score << endl;
 }
 
 int main() {
@@ -164,7 +164,7 @@ int main() {
     map<string, int> scoring;
     scoring["indel"] = -1;
     scoring["mismatch"] = -1;
-    scoring["match"] = 1;
+    scoring["match"] = 0;
     sequence1 = "*" + sequence1;
     sequence2 = "*" + sequence2;
     if (sequence2.size() < sequence1.size()) // keeping sequence1 as the shorter sequence
@@ -173,12 +173,7 @@ int main() {
     cout << "seq2: " << sequence2 << endl;
     map<int, vector<int> > result;
     hirschberg(0, 0, sequence1.size()-1, sequence2.size()-1, sequence1, sequence2, scoring, result);
-    for (map<int, vector<int> >::iterator iter = result.begin(); iter != result.end(); ++iter) {
-        cout << "for column " << iter->first << endl;
-        for (int i = 0; i < iter->second.size(); ++i) {
-            cout << iter->second[i] << ", ";
-        }
-        cout << endl;
-    }
+    addFirstLastColumnToResult(result, sequence1, sequence2, scoring);
+    //printResult(result);
     printAlignment(result, sequence1, sequence2, scoring);
 }
