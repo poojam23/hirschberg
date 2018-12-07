@@ -16,11 +16,15 @@ void printVector(vector<int> &vec) {
     cout << endl;
 }
 
-int getAlignmentScore(string &seq1_align, string &seq2_align) {
+int getAlignmentScore(string &seq1_align, string &seq2_align, map<string, int> &scoring) {
     int score = 0;
     for (int i = 0; i < seq1_align.size(); ++i) {
-        if (seq1_align[i] != seq2_align[i])
-            ++score;
+        if (seq1_align[i] == '-' || seq2_align[i] == '-')
+            score += scoring["indel"];
+        else if (seq1_align[i] != seq2_align[i])
+            score += scoring["mismatch"];
+        else
+            score += scoring["match"];
     }
     return score;
 }
@@ -106,7 +110,7 @@ void addFirstLastColumnToResult(map<int, vector<int> > &result, string &seq1, st
     vector<int> first_col_suffix = suffix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
     vector<int> last_col_prefix = prefix(0, 0, seq1.size()-1, seq2.size()-1, seq1, seq2, scoring);
     int first_col_best_score = first_col_suffix[0], last_col_best_score = last_col_prefix.back();
-    cout << "correct edit distance: " << -last_col_best_score << endl;
+    cout << "correct alignment score: " << last_col_best_score << endl;
     for (int i = 0; i < seq1.size(); ++i) {
         int first_col_score = first_col_suffix[i] - i;
         int last_col_score = last_col_prefix[seq1.size()-i-1] - i;
@@ -154,8 +158,8 @@ void printAlignment(map<int, vector<int> > &result, string &seq1, string &seq2, 
     reverse(seq2_align.begin(), seq2_align.end());
     cout << seq1_align << endl;
     cout << seq2_align << endl;
-    int alignment_score = getAlignmentScore(seq1_align, seq2_align);
-    cout << "our edit distance: " << alignment_score << endl;
+    int alignment_score = getAlignmentScore(seq1_align, seq2_align, scoring);
+    cout << "our alignment score: " << alignment_score << endl;
 }
 
 int main() {
@@ -164,7 +168,7 @@ int main() {
     map<string, int> scoring;
     scoring["indel"] = -1;
     scoring["mismatch"] = -1;
-    scoring["match"] = 0;
+    scoring["match"] = 1;
     sequence1 = "*" + sequence1;
     sequence2 = "*" + sequence2;
     if (sequence2.size() < sequence1.size()) // keeping sequence1 as the shorter sequence
